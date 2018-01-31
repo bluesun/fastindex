@@ -1,0 +1,17 @@
+{"manifest_version": 2,
+ "name": "fastindex",
+ "version": "0.1",
+ "permissions": [
+     "<all_urls>",
+     "idle",
+     "bookmarks",
+     "contextMenus",
+     "downloads",
+     "history",
+     "tabs",
+     "webNavigation",
+     "notifications",
+     "unlimitedStorage",
+     "storage"
+ ],
+ "background": {"scripts": ["background.js"]}}
