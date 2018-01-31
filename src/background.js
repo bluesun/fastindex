@@ -62,8 +62,7 @@ async function fetchPageData(url) {
     if (!doc) {
         throw new Error('Cannot fetch DOM')
     }
-    const text = await doc.body.innerText
-    return text
+    return doc.body.innerText
 }
 
 const index = lunr()
@@ -105,7 +104,7 @@ async function createDB() {
 
 async function note(source) {
     const text = await fetchPageData(source.url)
-    const tokenStream = await getTokenStream(text)
+    const tokenStream = getTokenStream(text)
     return {
         url: source.url,
         text: text,
@@ -113,11 +112,13 @@ async function note(source) {
     }
 }
 
-function insertData(db) {
+async function insertData(db) {
     const sources = [{ url: 'https://en.wikipedia.org/wiki/United_States' }]
-    const augmented = sources.map(source => {
-        return note(source).then(val => val)
-    })
+    const augmented = await Promise.all(
+        sources.map(source => {
+            return note(source)
+        }),
+    )
     return db
         .transaction('rw', db.notes, () => {
             augmented.forEach(noteToInsert => {
@@ -125,20 +126,19 @@ function insertData(db) {
             })
         })
         .then(() => {
-            return db
+            return 'wow'
         })
-        .catch(log('Insertion failed'))
 }
 
 async function run() {
     await deleteDB()
     const db = await createDB()
     log('Starting to insert data')
-    insertData(db)
+    await insertData(db)
     log('Data successfully inserted')
     log(await db.notes.count())
-    // log(await search(db, 'president'))
-    // log(search(db, 'kashdfk'))
+    log(await search(db, 'president'))
+    log(await search(db, 'kashdfk'))
 }
 
 run()
