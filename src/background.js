@@ -71,18 +71,16 @@ function getTokenStream(text) {
     return index.pipeline.run(lunr.tokenizer(text))
 }
 
-async function search(db, query) {
-    const docs = []
+function search(db, query) {
     log('Starting query ' + query)
-    await db.transaction('r', db.notes, function() {
+    return db.transaction('r', db.notes, () => {
         db.notes
             .where('tokens')
             .equals(query)
-            .each(function(doc) {
-                docs.push(doc)
+            .toArray(val => {
+                return val
             })
     })
-    return docs
 }
 
 async function deleteDB() {
@@ -137,7 +135,9 @@ async function run() {
     await insertData(db)
     log('Data successfully inserted')
     log(await db.notes.count())
+    window.wasabi = { db }
     log(await search(db, 'president'))
+    log(await search(db, 'usa'))
     log(await search(db, 'kashdfk'))
 }
 
