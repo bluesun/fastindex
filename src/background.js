@@ -20,7 +20,16 @@ function fetchDOMFromUrl(url, timeout) {
                 req.ontimeout = () => reject(new Error('Data fetch timeout'))
 
                 // General non-HTTP errors
-                req.onerror = () => reject(new Error('Data fetch failed'))
+                req.onerror = () =>
+                    reject(
+                        new Error(
+                            'Data fetch failed:[' +
+                                req.status +
+                                ':' +
+                                req.statusText +
+                                ']',
+                        ),
+                    )
 
                 // Allow non-200 response statuses to be considered failures;
                 //  non-HTTP issues also show up as 0. Add any exception cases in here.
@@ -45,26 +54,16 @@ function fetchDOMFromUrl(url, timeout) {
     }
 }
 
-function fetchPageData(url) {
-    const req = fetchDOMFromUrl(url, 10000)
-    const cancel = req.cancel
+async function fetchPageData(url) {
+    const result = fetchDOMFromUrl(url, 10000)
+    const doc = await result.run()
 
-    /**
-     * @return {Promise<any>} Resolves to an object containing `content` and `favIconURI` data
-     *  fetched from the DOM pointed at by the `url` of `fetchPageData` call.
-     */
-    const run = async function() {
-        const doc = await req.run()
-
-        // If DOM couldn't be fetched, then we can't get anything
-        if (!doc) {
-            throw new Error('Cannot fetch DOM')
-        }
-
-        return doc.body.innerText
+    // If DOM couldn't be fetched, then we can't get anything
+    if (!doc) {
+        throw new Error('Cannot fetch DOM')
     }
-
-    return { run, cancel }
+    const text = await doc.body.innerText
+    return text
 }
 
 const index = lunr()
@@ -74,11 +73,17 @@ function getTokenStream(text) {
 }
 
 async function search(db, query) {
-    log('Searching for ' + query)
-    const result = await db.transaction('r', db.notes, async () => {
-        await db.notes.where('tokens').equals(query)
+    const docs = []
+    log('Starting query ' + query)
+    await db.transaction('r', db.notes, function() {
+        db.notes
+            .where('tokens')
+            .equals(query)
+            .each(function(doc) {
+                docs.push(doc)
+            })
     })
-    log(result)
+    return docs
 }
 
 async function deleteDB() {
@@ -99,9 +104,7 @@ async function createDB() {
 }
 
 async function note(source) {
-    const fetcher = fetchPageData(source.url)
-    const text = await fetcher.run()
-    // var text = document.body.innerText
+    const text = await fetchPageData(source.url)
     const tokenStream = await getTokenStream(text)
     return {
         url: source.url,
@@ -110,27 +113,32 @@ async function note(source) {
     }
 }
 
-async function insertData(db) {
+function insertData(db) {
     const sources = [{ url: 'https://en.wikipedia.org/wiki/United_States' }]
-    await db.transaction('rw', db.notes, async () => {
-        sources.forEach(async source => {
-            const noteToInsert = await note(source)
-            await db.notes.add(noteToInsert)
-        })
+    const augmented = sources.map(source => {
+        return note(source).then(val => val)
     })
     return db
+        .transaction('rw', db.notes, () => {
+            augmented.forEach(noteToInsert => {
+                db.notes.add(noteToInsert)
+            })
+        })
+        .then(() => {
+            return db
+        })
+        .catch(log('Insertion failed'))
 }
 
 async function run() {
     await deleteDB()
     const db = await createDB()
     log('Starting to insert data')
-    await insertData(db)
-    stop()
+    insertData(db)
     log('Data successfully inserted')
-    log(await search(db, 'president'))
-    log(await search(db, 'kashdfk'))
-    return 'DONE'
+    log(await db.notes.count())
+    // log(await search(db, 'president'))
+    // log(search(db, 'kashdfk'))
 }
 
 run()
