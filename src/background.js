@@ -111,7 +111,13 @@ async function note(source) {
 }
 
 async function insertData(db) {
-    const sources = [{ url: 'https://en.wikipedia.org/wiki/United_States' }]
+    const sources = [
+        { url: 'https://en.wikipedia.org/wiki/United_States' },
+        { url: 'https://en.wikipedia.org/wiki/Golden_jackal' },
+        { url: 'https://en.wikipedia.org/wiki/Gray_wolf' },
+        { url: 'https://en.wikipedia.org/wiki/Genus' },
+        { url: 'https://en.wikipedia.org/wiki/Taxonomy_(biology)' },
+    ]
     const augmented = await Promise.all(
         sources.map(source => {
             return note(source)
@@ -135,10 +141,16 @@ async function run() {
     await insertData(db)
     log('Data successfully inserted')
     log(await db.notes.count())
-    window.wasabi = { db }
+    window.wasabi.db = db
     log(await search(db, 'president'))
     log(await search(db, 'usa'))
     log(await search(db, 'kashdfk'))
+    const wolf = await window.wasabi.db.notes
+        .where('tokens')
+        .equals('wolf')
+        .toArray(val => val)
+    log('wolf search')
+    log(wolf)
 }
 
-run()
+window.wasabi = { fns: { run } }
