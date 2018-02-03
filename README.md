@@ -1,12 +1,12 @@
-* Motivation *
+# Motivation
 
 This is an experiment to improve performance of the indexing speed of HTML pages retrieved via a Chrome plugin. It will be used to test assumptions about performance enhancements in the [Worldbrain Plugin](https://github.com/WorldBrain).
 
-* Intended audience
+# Intended audience
 
 People working on the Worldbrain plugin
 
-* Approach *
+# Approach
 
 We use currently the function innerText to get the concanetated content of the retrieved DOM into a string for further processing. 
 
@@ -40,22 +40,22 @@ To test if a term (word) is in the IndexedDB use:
 Searching for the term "wolf":
 `await window.wasabi.db.notes.where('tokens').equals('wolf').toArray(val => val)`
 
-* Code *
+# Code
 
 The only really relevant file is [src/background.js](src/background.js) 
 The rest are helper files to create the Chome plugin
 
-* Comments *
+# Comments
 
 - As this a hack experiment, I just copied the list of dependencies from the Worldbrain plugin. It has a LOT of unnecessary dependencies
 - It has currently a hardcoded list of URL's
 - It is not yet covering the current needs of the Worldbrain project
 - The start of this work has been inspired bei a [gist](https://gist.github.com/nolanlawson/6f69f4a573c1da862e92). Thanks to Nolan Lawson (@nolanlawson) for the inspiration.
 
-* To do *
+# To do
 
 - Write tests
 
-* Known bugs *
+# Known bugs
 
 1. Some of the words are currently not found like "president" (from the wikipedia USA page)
