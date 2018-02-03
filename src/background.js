@@ -3,7 +3,6 @@ import Dexie from 'dexie'
 
 const console = chrome.extension.getBackgroundPage().console
 const log = console.log
-log('Hello world')
 
 function fetchDOMFromUrl(url, timeout) {
     const req = new XMLHttpRequest()
@@ -134,14 +133,21 @@ async function insertData(db) {
         })
 }
 
-async function run() {
+async function setup() {
     await deleteDB()
     const db = await createDB()
-    log('Starting to insert data')
-    await insertData(db)
-    log('Data successfully inserted')
-    log(await db.notes.count())
     window.wasabi.db = db
+    log('Setup done')
+}
+
+async function indexNow() {
+    log('Starting to insert data')
+    await insertData(window.wasabi.db)
+    log('Data successfully inserted')
+    log(await window.wasabi.db.notes.count())
+}
+
+async function doStuff() {
     log(await search(db, 'president'))
     log(await search(db, 'usa'))
     log(await search(db, 'kashdfk'))
@@ -153,4 +159,4 @@ async function run() {
     log(wolf)
 }
 
-window.wasabi = { fns: { run } }
+window.wasabi = { fns: { setup, indexNow, doStuff } }
