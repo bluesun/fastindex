@@ -1,8 +1,9 @@
-import lunr from 'src/vendor/lunr.min.js'
 import Dexie from 'dexie'
+import Tokenizer from './tokenizer'
 
 const console = chrome.extension.getBackgroundPage().console
 const log = console.log
+const TOKENIZER = new Tokenizer()
 
 function fetchDOMFromUrl(url, timeout) {
     const req = new XMLHttpRequest()
@@ -63,12 +64,7 @@ async function fetchPageData(url) {
     }
     return doc.body.innerText
 }
-
-const index = lunr()
-
-function getTokenStream(text) {
-    return index.pipeline.run(lunr.tokenizer(text))
-}
+window.fetchPageData = fetchPageData
 
 function search(db, query) {
     log('Starting query ' + query)
@@ -101,7 +97,7 @@ async function createDB() {
 
 async function note(source) {
     const text = await fetchPageData(source.url)
-    const tokenStream = getTokenStream(text)
+    const tokenStream = TOKENIZER.getTokenStream(text)
     return {
         url: source.url,
         text: text,
