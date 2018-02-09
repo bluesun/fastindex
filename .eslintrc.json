@@ -1,10 +1,10 @@
 {
     "env": {
         "browser": true,
-        "webextensions": true
+        "webextensions": true,
+        "mocha": true
     },
     "extends": [
-        "plugin:jest/recommended",
         "plugin:import/recommended",
         "plugin:import/react",
         "plugin:promise/recommended",
@@ -17,12 +17,24 @@
     "settings": {
         "import/resolver": {
             "node": {
-                "extensions": [".js", ".jsx"],
-                "moduleDirectory": ["node_modules", "."]
+                "extensions": [
+                    ".js",
+                    ".jsx"
+                ],
+                "moduleDirectory": [
+                    "node_modules",
+                    "."
+                ]
             }
         }
     },
-    "plugins": ["prettier", "jest", "standard", "import", "promise", "react"],
+    "plugins": [
+        "prettier",
+        "standard",
+        "import",
+        "promise",
+        "react"
+    ],
     "parser": "babel-eslint",
     "parserOptions": {
         "sourceType": "module",
@@ -31,7 +43,10 @@
         }
     },
     "rules": {
-        "comma-dangle": ["error", "always-multiline"],
+        "comma-dangle": [
+            "error",
+            "always-multiline"
+        ],
         "quotes": "off",
         "no-var": "error",
         "prefer-const": "error",
@@ -40,11 +55,22 @@
         "react/jsx-indent-props": "off",
         "jsx-quotes": "off",
         "operator-linebreak": "off",
-        "no-multiple-empty-lines": ["error", { "max": 2, "maxEOF": 0 }],
+        "no-multiple-empty-lines": [
+            "error",
+            {
+                "max": 2,
+                "maxEOF": 0
+            }
+        ],
         "no-unused-vars": "warn",
         "space-before-function-paren": "off",
         "space-infix-ops": "off",
-        "no-multi-spaces": ["warn", { "ignoreEOLComments": true }],
+        "no-multi-spaces": [
+            "warn",
+            {
+                "ignoreEOLComments": true
+            }
+        ],
         "handle-callback-err": "off",
         "no-return-await": "off",
         "import/no-mutable-exports": "error",
@@ -56,6 +82,11 @@
         "react/jsx-filename-extension": "off",
         "react/prefer-stateless-function": "warn",
         "react/sort-comp": "warn",
-        "react/jsx-max-props-per-line": [1, { "when": "multiline" }]
+        "react/jsx-max-props-per-line": [
+            1,
+            {
+                "when": "multiline"
+            }
+        ]
     }
 }

@@ -1,5 +1,5 @@
-import Dexie from 'dexie'
 import Tokenizer from './tokenizer'
+import Storage from './storage'
 
 const console = chrome.extension.getBackgroundPage().console
 const log = console.log
@@ -104,6 +104,8 @@ async function note(source) {
         tokens: tokenStream,
     }
 }
+
+async function insertNote(db, note) {}
 
 async function insertData(db) {
     const sources = [
