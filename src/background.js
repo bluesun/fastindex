@@ -4,6 +4,7 @@ import Storage from './storage'
 const console = chrome.extension.getBackgroundPage().console
 const log = console.log
 const TOKENIZER = new Tokenizer()
+const STORAGE = new Storage({ dbName: 'test' })
 
 function fetchDOMFromUrl(url, timeout) {
     const req = new XMLHttpRequest()
@@ -66,33 +67,17 @@ async function fetchPageData(url) {
 }
 window.fetchPageData = fetchPageData
 
-function search(db, query) {
+function search(query) {
     log('Starting query ' + query)
-    return db.transaction('r', db.notes, () => {
-        db.notes
-            .where('tokens')
-            .equals(query)
-            .toArray(val => {
-                return val
-            })
-    })
+    return STORAGE.search(query)
 }
 
 async function deleteDB() {
-    return new Promise(function(resolve, reject) {
-        const req = indexedDB.deleteDatabase('test')
-        req.onsuccess = resolve
-        req.onerror = resolve
-    })
+    return await STORAGE.deleteDB()
 }
 
 async function createDB() {
-    return new Promise((resolve, reject) => {
-        const db = new Dexie('test')
-        db.version(1).stores({ notes: '&url,text,*tokens' })
-        db.open()
-        resolve(db)
-    })
+    return await STORAGE.createDB()
 }
 
 async function note(source) {
@@ -105,9 +90,7 @@ async function note(source) {
     }
 }
 
-async function insertNote(db, note) {}
-
-async function insertData(db) {
+async function insertData() {
     const sources = [
         { url: 'https://en.wikipedia.org/wiki/United_States' },
         { url: 'https://en.wikipedia.org/wiki/Golden_jackal' },
@@ -120,36 +103,28 @@ async function insertData(db) {
             return note(source)
         }),
     )
-    return db
-        .transaction('rw', db.notes, () => {
-            augmented.forEach(noteToInsert => {
-                db.notes.add(noteToInsert)
-            })
-        })
-        .then(() => {
-            return 'wow'
-        })
+    return await STORAGE.insertNotes(augmented)
 }
 
 async function setup() {
-    await deleteDB()
-    const db = await createDB()
-    window.wasabi.db = db
+    await STORAGE.deleteDB()
+    await STORAGE.createDB()
+    window.wasabi.storage = STORAGE
     log('Setup done')
 }
 
 async function indexNow() {
     log('Starting to insert data')
-    await insertData(window.wasabi.db)
+    await insertData()
     log('Data successfully inserted')
-    log(await window.wasabi.db.notes.count())
+    log(await STORAGE._db.notes.count())
 }
 
 async function doStuff() {
-    log(await search(db, 'president'))
-    log(await search(db, 'usa'))
-    log(await search(db, 'kashdfk'))
-    const wolf = await window.wasabi.db.notes
+    log(await STORAGE.search('president'))
+    log(await STORAGE.search('usa'))
+    log(await STORAGE.search('kashdfk'))
+    const wolf = await STORAGE._db.notes
         .where('tokens')
         .equals('wolf')
         .toArray(val => val)

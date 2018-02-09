@@ -27,7 +27,7 @@ export default class Storage {
                 window.wasabi.db = this._db
             }
 
-            resolve(this._db)
+            // resolve(this._db)
         })
     }
 
