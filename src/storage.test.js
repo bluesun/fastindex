@@ -8,7 +8,7 @@ describe('Storage', () => {
 
     beforeEach(async () => {
         storage = new Storage({
-            IDBFactory: fakeIDBFactory,
+            indexedDB: fakeIDBFactory,
             IDBKeyRange: fakeIDBKeyRange,
             dbName: 'unittest',
         })
