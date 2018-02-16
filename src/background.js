@@ -98,12 +98,13 @@ async function insertData() {
         { url: 'https://en.wikipedia.org/wiki/Genus' },
         { url: 'https://en.wikipedia.org/wiki/Taxonomy_(biology)' },
     ]
-    const augmented = await Promise.all(
+    const augmented = (await Promise.all(
         sources.map(source => {
             return note(source)
         }),
-    )
-    return await STORAGE.insertNotes(augmented)
+    )).map(pageData => [pageData]) // Shape as page entries (change later)
+
+    return await STORAGE.addPages(augmented)
 }
 
 async function setup() {
@@ -117,17 +118,14 @@ async function indexNow() {
     log('Starting to insert data')
     await insertData()
     log('Data successfully inserted')
-    log(await STORAGE._db.notes.count())
+    log(await STORAGE._db.pages.count())
 }
 
 async function doStuff() {
     log(await STORAGE.search('president'))
     log(await STORAGE.search('usa'))
     log(await STORAGE.search('kashdfk'))
-    const wolf = await STORAGE._db.notes
-        .where('tokens')
-        .equals('wolf')
-        .toArray(val => val)
+    const wolf = await STORAGE.search('wolf')
     log('wolf search')
     log(wolf)
 }

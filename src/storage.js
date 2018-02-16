@@ -1,4 +1,5 @@
 import Dexie from 'dexie'
+import relationships from 'dexie-relationships'
 
 export default class Storage {
     constructor(
@@ -19,9 +20,13 @@ export default class Storage {
             this._db = new Dexie(this._dbName, {
                 indexedDB: this._indexedDB,
                 IDBKeyRange: this._IDBKeyRange,
+                addons: [relationships],
             })
-            this._db.version(1).stores({ notes: '&url,text,*tokens' })
-            this._db.open()
+
+            this._db.version(1).stores({
+                pages: 'url,text,*tokens',
+                visits: '++,url -> pages.url,time',
+            })
 
             if (typeof window !== 'undefined' && window.wasabi) {
                 window.wasabi.db = this._db
@@ -39,27 +44,38 @@ export default class Storage {
         })
     }
 
-    async insertNotes(notes) {
-        return this._db
-            .transaction('rw', this._db.notes, () => {
-                notes.forEach(noteToInsert => {
-                    this._db.notes.add(noteToInsert)
-                })
-            })
-            .then(() => {
-                return 'wow'
-            })
+    /**
+     * Adds a page + associated visit (pages never exist without either an assoc. visit or bookmark in current model).
+     *
+     * @param {[any, number][]} pageEntries Array of two-element entry-like arrays.
+     *  El 0 being page data, el 1 being an associated visit time (defaults to current time if undefined).
+     * @return {Promise<void>}
+     */
+    addPages(pageEntries) {
+        return this._db.transaction(
+            'rw',
+            this._db.pages,
+            this._db.visits,
+            () => {
+                for (const [page, time = Date.now()] of pageEntries) {
+                    this._db.pages.add(page)
+                    this._db.visits.add({ url: page.url, time })
+                }
+            },
+        )
     }
 
     search(query) {
-        // log('Starting query ' + query)
-        return this._db.transaction('r', this._db.notes, () => {
-            return this._db.notes
-                .where('tokens')
-                .equals(query)
-                .toArray(val => {
-                    return val
-                })
-        })
+        return this._db.transaction(
+            'r',
+            this._db.pages,
+            this._db.visits,
+            () => {
+                return this._db.pages
+                    .where('tokens')
+                    .equals(query)
+                    .with({ visits: 'visits' })
+            },
+        )
     }
 }
