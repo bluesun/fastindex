@@ -9,39 +9,42 @@ export default class Storage {
             dbName: 'memex',
         },
     ) {
-        this._db = null
         this._dbName = dbName
         this._indexedDB = indexedDB || window.indexedDB
         this._IDBKeyRange = IDBKeyRange || window.IDBKeyRange
+
+        this._initInstance()
+        this._initSchema()
     }
 
-    async createDB() {
-        return new Promise((resolve, reject) => {
-            this._db = new Dexie(this._dbName, {
-                indexedDB: this._indexedDB,
-                IDBKeyRange: this._IDBKeyRange,
-                addons: [relationships],
-            })
+    get pageCount() {
+        return this._db.pages.count()
+    }
 
-            this._db.version(1).stores({
-                pages: 'url,text,*tokens',
-                visits: '++,url -> pages.url,time',
-            })
-
-            if (typeof window !== 'undefined' && window.wasabi) {
-                window.wasabi.db = this._db
-            }
-
-            resolve()
+    _initInstance() {
+        this._db = new Dexie(this._dbName, {
+            indexedDB: this._indexedDB,
+            IDBKeyRange: this._IDBKeyRange,
+            addons: [relationships],
         })
     }
 
-    async deleteDB() {
-        return new Promise((resolve, reject) => {
-            const req = this._indexedDB.deleteDatabase(this._dbName)
-            req.onsuccess = resolve
-            req.onerror = resolve
+    _initSchema() {
+        this._db.version(1).stores({
+            pages: 'url,text,*tokens',
+            visits: '++,url -> pages.url,time',
         })
+
+        // ... add versions/migration logic here
+    }
+
+    /**
+     * Performs async clearing of each table in succession (may just `Promise.all` this).
+     */
+    async clearData() {
+        for (const table of this._db.tables) {
+            await table.clear()
+        }
     }
 
     /**

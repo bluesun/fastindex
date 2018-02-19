@@ -4,17 +4,13 @@ import fakeIDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange'
 import Storage from './storage'
 
 describe('Storage', () => {
-    let storage
-
-    beforeEach(async () => {
-        storage = new Storage({
-            indexedDB: fakeIDBFactory,
-            IDBKeyRange: fakeIDBKeyRange,
-            dbName: 'unittest',
-        })
-        await storage.deleteDB()
-        await storage.createDB()
+    const storage = new Storage({
+        indexedDB: fakeIDBFactory,
+        IDBKeyRange: fakeIDBKeyRange,
+        dbName: 'unittest',
     })
+
+    beforeEach(() => storage.clearData())
 
     it('be able to add a page and associated visit data (explicit)', async () => {
         const visitTime = 1518755246196

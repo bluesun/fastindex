@@ -4,7 +4,7 @@ import Storage from './storage'
 const console = chrome.extension.getBackgroundPage().console
 const log = console.log
 const TOKENIZER = new Tokenizer()
-const STORAGE = new Storage({ dbName: 'test' })
+const index = new Storage({ dbName: 'test' })
 
 function fetchDOMFromUrl(url, timeout) {
     const req = new XMLHttpRequest()
@@ -67,19 +67,6 @@ async function fetchPageData(url) {
 }
 window.fetchPageData = fetchPageData
 
-function search(query) {
-    log('Starting query ' + query)
-    return STORAGE.search(query)
-}
-
-async function deleteDB() {
-    return await STORAGE.deleteDB()
-}
-
-async function createDB() {
-    return await STORAGE.createDB()
-}
-
 async function note(source) {
     const text = await fetchPageData(source.url)
     const tokenStream = TOKENIZER.getTokenStream(text)
@@ -104,13 +91,12 @@ async function insertData() {
         }),
     )).map(pageData => [pageData]) // Shape as page entries (change later)
 
-    return await STORAGE.addPages(augmented)
+    return await index.addPages(augmented)
 }
 
 async function setup() {
-    await STORAGE.deleteDB()
-    await STORAGE.createDB()
-    window.wasabi.storage = STORAGE
+    await index.clearData()
+    window.wasabi.storage = index
     log('Setup done')
 }
 
@@ -118,14 +104,14 @@ async function indexNow() {
     log('Starting to insert data')
     await insertData()
     log('Data successfully inserted')
-    log(await STORAGE._db.pages.count())
+    log(await index.pageCount)
 }
 
 async function doStuff() {
-    log(await STORAGE.search('president'))
-    log(await STORAGE.search('usa'))
-    log(await STORAGE.search('kashdfk'))
-    const wolf = await STORAGE.search('wolf')
+    log(await index.search('president'))
+    log(await index.search('usa'))
+    log(await index.search('kashdfk'))
+    const wolf = await index.search('wolf')
     log('wolf search')
     log(wolf)
 }
