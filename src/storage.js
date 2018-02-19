@@ -21,6 +21,9 @@ export default class Storage extends Dexie {
      */
     visits
 
+    _minString = ''
+    _maxString = String.fromCharCode(65535)
+
     constructor(
         { indexedDB, IDBKeyRange, dbName } = {
             indexedDB: null,
@@ -40,8 +43,7 @@ export default class Storage extends Dexie {
     _initSchema() {
         this.version(1).stores({
             pages: 'url,text,*tokens',
-            visits:
-                '[url+time],url -> pages.url,duration,scrollMaxPerc,scrollMaxPx,scrollPerc,scrollPx',
+            visits: '[time+url],url -> pages.url',
         })
 
         // ... add versions/migration logic here
@@ -89,11 +91,31 @@ export default class Storage extends Dexie {
         })
     }
 
-    search(query) {
-        return this.transaction('r', this.pages, this.visits, () => {
+    /**
+     * TODO: find a better way to do Dexie cross-table queries like this. Ignore visits table if no specified times?.
+     *
+     * @param {string} query Terms search query.
+     * @param {number} [startTime=0] Lower-bound for visit time.
+     * @param {number} [endTime=Date.now()] Upper-bound for visit time.
+     * @return {Promise<any[]>}
+     */
+    search(query, startTime = 0, endTime = Date.now()) {
+        return this.transaction('r', this.pages, this.visits, async () => {
+            // Get all visits in time
+            const visits = await this.visits
+                .where('[time+url]')
+                .between(
+                    [startTime, this._minString],
+                    [endTime, this._maxString],
+                )
+                .toArray()
+
+            const visitUrls = new Set(visits.map(visit => visit.url))
+
             return this.pages
                 .where('tokens')
                 .equals(query)
+                .filter(page => visitUrls.has(page.url))
                 .with({ visits: 'visits' })
         })
     }
