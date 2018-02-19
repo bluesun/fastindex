@@ -104,7 +104,7 @@ async function indexNow() {
     log('Starting to insert data')
     await insertData()
     log('Data successfully inserted')
-    log(await index.pageCount)
+    log(await index.pages.count())
 }
 
 async function doStuff() {

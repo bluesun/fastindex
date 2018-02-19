@@ -1,7 +1,17 @@
 import Dexie from 'dexie'
 import relationships from 'dexie-relationships'
 
-export default class Storage {
+export default class Storage extends Dexie {
+    /**
+     * @property {Dexie.Table} Represents page data - our main data type.
+     */
+    pages
+
+    /**
+     * @property {Dexie.Table} Represents page visit timestamp and activity data.
+     */
+    visits
+
     constructor(
         { indexedDB, IDBKeyRange, dbName } = {
             indexedDB: null,
@@ -9,28 +19,17 @@ export default class Storage {
             dbName: 'memex',
         },
     ) {
-        this._dbName = dbName
-        this._indexedDB = indexedDB || window.indexedDB
-        this._IDBKeyRange = IDBKeyRange || window.IDBKeyRange
+        super(dbName, {
+            indexedDB: indexedDB || window.indexedDB,
+            IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
+            addons: [relationships],
+        })
 
-        this._initInstance()
         this._initSchema()
     }
 
-    get pageCount() {
-        return this._db.pages.count()
-    }
-
-    _initInstance() {
-        this._db = new Dexie(this._dbName, {
-            indexedDB: this._indexedDB,
-            IDBKeyRange: this._IDBKeyRange,
-            addons: [relationships],
-        })
-    }
-
     _initSchema() {
-        this._db.version(1).stores({
+        this.version(1).stores({
             pages: 'url,text,*tokens',
             visits: '++,url -> pages.url,time',
         })
@@ -42,7 +41,7 @@ export default class Storage {
      * Performs async clearing of each table in succession (may just `Promise.all` this).
      */
     async clearData() {
-        for (const table of this._db.tables) {
+        for (const table of this.tables) {
             await table.clear()
         }
     }
@@ -55,30 +54,20 @@ export default class Storage {
      * @return {Promise<void>}
      */
     addPages(pageEntries) {
-        return this._db.transaction(
-            'rw',
-            this._db.pages,
-            this._db.visits,
-            () => {
-                for (const [page, time = Date.now()] of pageEntries) {
-                    this._db.pages.add(page)
-                    this._db.visits.add({ url: page.url, time })
-                }
-            },
-        )
+        return this.transaction('rw', this.pages, this.visits, () => {
+            for (const [page, time = Date.now()] of pageEntries) {
+                this.pages.add(page)
+                this.visits.add({ url: page.url, time })
+            }
+        })
     }
 
     search(query) {
-        return this._db.transaction(
-            'r',
-            this._db.pages,
-            this._db.visits,
-            () => {
-                return this._db.pages
-                    .where('tokens')
-                    .equals(query)
-                    .with({ visits: 'visits' })
-            },
-        )
+        return this.transaction('r', this.pages, this.visits, () => {
+            return this.pages
+                .where('tokens')
+                .equals(query)
+                .with({ visits: 'visits' })
+        })
     }
 }
