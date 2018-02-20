@@ -1,16 +1,21 @@
 import Dexie from 'dexie'
 import relationships from 'dexie-relationships'
 
+import { Page, Visit } from './models'
+
 /**
  * @typedef {Object} VisitInteraction
- * @property {number} duration Time user was active during visit (ms).
- * @property {number} scrollPx Y-axis pixel scrolled to at point in time.
- * @property {number} scrollPerc
- * @property {number} scrollMaxPx Furthest y-axis pixel scrolled to during visit.
- * @property {number} scrollMaxPerc
  */
 
 export default class Storage extends Dexie {
+    static DEF_PARAMS = {
+        indexedDB: null,
+        IDBKeyRange: null,
+        dbName: 'memex',
+    }
+    static MIN_STR = ''
+    static MAX_STR = String.fromCharCode(65535)
+
     /**
      * @property {Dexie.Table} Represents page data - our main data type.
      */
@@ -21,16 +26,7 @@ export default class Storage extends Dexie {
      */
     visits
 
-    _minString = ''
-    _maxString = String.fromCharCode(65535)
-
-    constructor(
-        { indexedDB, IDBKeyRange, dbName } = {
-            indexedDB: null,
-            IDBKeyRange: null,
-            dbName: 'memex',
-        },
-    ) {
+    constructor({ indexedDB, IDBKeyRange, dbName } = Storage.DEF_PARAMS) {
         super(dbName, {
             indexedDB: indexedDB || window.indexedDB,
             IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
@@ -42,11 +38,15 @@ export default class Storage extends Dexie {
 
     _initSchema() {
         this.version(1).stores({
-            pages: 'url,text,*tokens',
-            visits: '[time+url],url -> pages.url',
+            pages: 'url, text, *tokens',
+            visits: '[url+time]',
         })
 
         // ... add versions/migration logic here
+
+        // Set up model classes
+        this.pages.mapToClass(Page)
+        this.visits.mapToClass(Visit)
     }
 
     /**
@@ -67,13 +67,13 @@ export default class Storage extends Dexie {
      *  El 0 being page data, el 1 being an associated visit time (defaults to current time if undefined).
      * @return {Promise<void>}
      */
-    addPages(pageEntries) {
-        return this.transaction('rw', this.pages, this.visits, () => {
-            for (const [page, time = Date.now()] of pageEntries) {
-                this.pages.add(page)
-                this.visits.add({ url: page.url, time })
-            }
-        })
+    async addPages(pageEntries) {
+        for (const [pageData, time = Date.now()] of pageEntries) {
+            const visit = new Visit({ url: pageData.url, time })
+            const page = new Page({ ...pageData, visits: [visit] })
+
+            await page.save(this)
+        }
     }
 
     /**
@@ -87,7 +87,9 @@ export default class Storage extends Dexie {
     updateVisitInteractionData(url, time, data) {
         return this.transaction('rw', this.visits, () => {
             // Should be a compound PK index on `url` and `time`
-            this.visits.where({ url, time }).modify({ ...data })
+            this.visits
+                .where({ url, time })
+                .modify((visit, ref) => ref.addInteractionData(data))
         })
     }
 
@@ -105,8 +107,8 @@ export default class Storage extends Dexie {
             const visits = await this.visits
                 .where('[time+url]')
                 .between(
-                    [startTime, this._minString],
-                    [endTime, this._maxString],
+                    [startTime, Storage.MIN_STR],
+                    [endTime, Storage.MAX_STR],
                 )
                 .toArray()
 

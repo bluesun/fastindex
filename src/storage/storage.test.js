@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import fakeIDBFactory from 'fake-indexeddb'
 import fakeIDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange'
+
 import Storage from './storage'
 
 describe('Storage', () => {
