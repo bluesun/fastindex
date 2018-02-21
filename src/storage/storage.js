@@ -153,6 +153,7 @@ export default class Storage extends Dexie {
      * @param {number} [args.endTime=Date.now()] Upper-bound for visit time.
      * @param {number} [args.skip=0]
      * @param {number} [args.limit=10]
+     * @param {boolean} [args.bookmarks=false] Whether or not to filter by bookmarked pages only.
      * @return {Promise<[number, string][]>} Ordered array of result KVPs of latest visit timestamps to page URLs.
      */
     search({
@@ -161,36 +162,51 @@ export default class Storage extends Dexie {
         endTime = Date.now(),
         skip = 0,
         limit = 10,
+        bookmarks = false,
     }) {
-        return this.transaction('r', this.pages, this.visits, async () => {
-            // Fetch all latest visits in time range, grouped by URL
-            const latestVisitByUrl = new Map()
-            await this.visits
-                .where('[time+url]')
-                .between(
-                    [startTime, Storage.MIN_STR],
-                    [endTime, Storage.MAX_STR],
-                )
-                .reverse() // Go through visits by most recent
-                .eachPrimaryKey(([time, url]) => {
-                    // Only ever record the first (latest) visit for each URL
-                    if (!latestVisitByUrl.get(url)) {
-                        latestVisitByUrl.set(url, time)
-                    }
-                })
+        return this.transaction(
+            'r',
+            this.pages,
+            this.visits,
+            this.bookmarks,
+            async () => {
+                // Fetch all latest visits in time range, grouped by URL
+                const latestVisitByUrl = new Map()
+                await this.visits
+                    .where('[time+url]')
+                    .between(
+                        [startTime, Storage.MIN_STR],
+                        [endTime, Storage.MAX_STR],
+                    )
+                    .reverse() // Go through visits by most recent
+                    .eachPrimaryKey(([time, url]) => {
+                        // Only ever record the first (latest) visit for each URL
+                        if (!latestVisitByUrl.get(url)) {
+                            latestVisitByUrl.set(url, time)
+                        }
+                    })
 
-            // Fetch all pages with terms matching query
-            const matchingPageUrls = await this.pages
-                .where('terms')
-                .equals(query)
-                .filter(page => latestVisitByUrl.has(page.url))
-                .primaryKeys()
+                // Fetch all pages with terms matching query
+                let matchingPageUrls = await this.pages
+                    .where('terms')
+                    .equals(query)
+                    .filter(page => latestVisitByUrl.has(page.url))
+                    .primaryKeys()
 
-            // Paginate
-            return matchingPageUrls
-                .map(url => [latestVisitByUrl.get(url), url])
-                .sort(([a], [b]) => a - b)
-                .slice(skip, skip + limit)
-        })
+                // Further filter down by bookmarks, if specified
+                if (bookmarks) {
+                    matchingPageUrls = await this.bookmarks
+                        .where('url')
+                        .anyOf(matchingPageUrls)
+                        .primaryKeys()
+                }
+
+                // Paginate
+                return matchingPageUrls
+                    .map(url => [latestVisitByUrl.get(url), url])
+                    .sort(([a], [b]) => a - b)
+                    .slice(skip, skip + limit)
+            },
+        )
     }
 }
