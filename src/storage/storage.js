@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 
-import { Page, Visit } from './models'
+import { Page, Visit, Bookmark } from './models'
 
 /**
  * @typedef {Object} VisitInteraction
@@ -30,6 +30,11 @@ export default class Storage extends Dexie {
      */
     visits
 
+    /**
+     * @property {Dexie.Table} Represents page visit timestamp and activity data.
+     */
+    bookmarks
+
     constructor({ indexedDB, IDBKeyRange, dbName } = Storage.DEF_PARAMS) {
         super(dbName, {
             indexedDB: indexedDB || window.indexedDB,
@@ -41,8 +46,9 @@ export default class Storage extends Dexie {
 
     _initSchema() {
         this.version(1).stores({
-            pages: 'url, text, *terms',
-            visits: '[url+time], [time+url]',
+            pages: 'url, *terms',
+            visits: '[time+url], url',
+            bookmarks: 'url, time',
         })
 
         // ... add versions/migration logic here
@@ -50,6 +56,7 @@ export default class Storage extends Dexie {
         // Set up model classes
         this.pages.mapToClass(Page)
         this.visits.mapToClass(Visit)
+        this.bookmarks.mapToClass(Bookmark)
     }
 
     /**
@@ -72,10 +79,54 @@ export default class Storage extends Dexie {
      */
     async addPages(pageEntries) {
         for (const [pageData, time = Date.now()] of pageEntries) {
-            const visit = new Visit({ url: pageData.url, time })
-            const page = new Page({ ...pageData, visits: [visit] })
-
+            const page = new Page(pageData)
+            page.addVisit(time)
             await page.save(this)
+        }
+    }
+
+    /**
+     * Handles adding a new bookmark for a given URL/page. If `pageData` is supplied and there is
+     * no pre-existing page for `url`, a new unvisited page is created along with the bookmark.
+     *
+     * @param {string} args.url
+     * @param {number} [args.time=Date.now()]
+     * @param {any} [pageData] Supply if
+     * @return {Promise<void>}
+     */
+    async addBookmark({ url, time = Date.now(), pageData }) {
+        const matchingPage = await this.pages.where({ url }).first()
+
+        // Base case; page exists, so just add bookmark and update
+        if (matchingPage != null) {
+            await matchingPage.loadRels(this)
+            matchingPage.setBookmark(time)
+            return matchingPage.save(this)
+        }
+
+        // Edge case: Page doesn't exist, try to create new one from supplied data
+        if (pageData == null) {
+            throw new Error(
+                'Bookmarked URL has no matching page stored, and no page data was supplied',
+            )
+        }
+
+        const page = new Page(pageData)
+        page.setBookmark(time)
+        await page.save()
+    }
+
+    /**
+     * @param {string} args.url
+     * @return {Promise<void>}
+     */
+    async delBookmark({ url }) {
+        const matchingPage = await this.pages.where({ url }).first()
+
+        if (matchingPage != null) {
+            await matchingPage.loadRels(this)
+            matchingPage.delBookmark()
+            await matchingPage.save(this)
         }
     }
 
@@ -121,7 +172,7 @@ export default class Storage extends Dexie {
                     [endTime, Storage.MAX_STR],
                 )
                 .reverse() // Go through visits by most recent
-                .eachPrimaryKey(([url, time]) => {
+                .eachPrimaryKey(([time, url]) => {
                     // Only ever record the first (latest) visit for each URL
                     if (!latestVisitByUrl.get(url)) {
                         latestVisitByUrl.set(url, time)

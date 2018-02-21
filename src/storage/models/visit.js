@@ -28,6 +28,7 @@ export default class Visit {
         this.url = url
         this.time = time
     }
+
     save(db) {
         return db.visits.put(this)
     }
