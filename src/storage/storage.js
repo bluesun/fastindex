@@ -1,10 +1,14 @@
 import Dexie from 'dexie'
-import relationships from 'dexie-relationships'
 
 import { Page, Visit } from './models'
 
 /**
  * @typedef {Object} VisitInteraction
+ * @property {number} duration Time user was active during visit (ms).
+ * @property {number} scrollPx Y-axis pixel scrolled to at point in time.
+ * @property {number} scrollPerc
+ * @property {number} scrollMaxPx Furthest y-axis pixel scrolled to during visit.
+ * @property {number} scrollMaxPerc
  */
 
 export default class Storage extends Dexie {
@@ -30,7 +34,6 @@ export default class Storage extends Dexie {
         super(dbName, {
             indexedDB: indexedDB || window.indexedDB,
             IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
-            addons: [relationships],
         })
 
         this._initSchema()
@@ -85,12 +88,12 @@ export default class Storage extends Dexie {
      * @return {Promise<void>}
      */
     updateVisitInteractionData(url, time, data) {
-        return this.transaction('rw', this.visits, () => {
-            // Should be a compound PK index on `url` and `time`
+        return this.transaction('rw', this.visits, () =>
             this.visits
-                .where({ url, time })
-                .modify((visit, ref) => ref.addInteractionData(data))
-        })
+                .where('[url+time]')
+                .equals([url, time])
+                .modify(data),
+        )
     }
 
     /**
