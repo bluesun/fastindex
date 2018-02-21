@@ -21,17 +21,17 @@ export default class Storage extends Dexie {
     static MAX_STR = String.fromCharCode(65535)
 
     /**
-     * @property {Dexie.Table} Represents page data - our main data type.
+     * @type {Dexie.Table} Represents page data - our main data type.
      */
     pages
 
     /**
-     * @property {Dexie.Table} Represents page visit timestamp and activity data.
+     * @type {Dexie.Table} Represents page visit timestamp and activity data.
      */
     visits
 
     /**
-     * @property {Dexie.Table} Represents page visit timestamp and activity data.
+     * @type {Dexie.Table} Represents page visit timestamp and activity data.
      */
     bookmarks
 
@@ -44,6 +44,10 @@ export default class Storage extends Dexie {
         this._initSchema()
     }
 
+    /**
+     * See docs for explanation of Dexie table schema syntax:
+     * http://dexie.org/docs/Version/Version.stores()
+     */
     _initSchema() {
         this.version(1).stores({
             pages: 'url, *terms',
