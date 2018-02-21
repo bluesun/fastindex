@@ -1,7 +1,8 @@
+import AbstractModel from './abstract-model'
 import Visit from './visit'
 import Bookmark from './bookmark'
 
-export default class Page {
+export default class Page extends AbstractModel {
     /**
      * @param {string} args.url
      * @param {string} args.text
@@ -10,6 +11,7 @@ export default class Page {
      * @param {Bookmark} [args.bookmark] Opt. Bookmark to assoc. with.
      */
     constructor({ url, text, terms, bookmark, visits = [] }) {
+        super()
         this.url = url
         this.text = text
         this.terms = terms
@@ -53,7 +55,6 @@ export default class Page {
                 const visitIds = await Promise.all(
                     this.visits.map(visit => visit.save(db)),
                 )
-                console.log('saving visits:', this.visits, visitIds)
 
                 // Either try to update or delete the assoc. bookmark
                 if (this.bookmark != null) {

@@ -1,4 +1,6 @@
-export default class Visit {
+import EventModel from './event-model'
+
+export default class Visit extends EventModel {
     /**
      * @property {number} duration Time user was active during visit (ms).
      */
@@ -23,11 +25,6 @@ export default class Visit {
      * @property {number} scrollMaxPerc
      */
     scrollMaxPerc
-
-    constructor({ url, time }) {
-        this.url = url
-        this.time = time
-    }
 
     save(db) {
         return db.visits.put(this)

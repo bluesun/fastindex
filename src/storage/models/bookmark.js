@@ -1,9 +1,6 @@
-export default class Bookmark {
-    constructor({ url, time }) {
-        this.url = url
-        this.time = time
-    }
+import EventModel from './event-model'
 
+export default class Bookmark extends EventModel {
     save(db) {
         return db.bookmarks.put(this)
     }
