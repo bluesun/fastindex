@@ -38,8 +38,8 @@ export default class Storage extends Dexie {
 
     _initSchema() {
         this.version(1).stores({
-            pages: 'url, text, *tokens',
-            visits: '[url+time]',
+            pages: 'url, text, *terms',
+            visits: '[url+time], [time+url]',
         })
 
         // ... add versions/migration logic here
@@ -94,31 +94,49 @@ export default class Storage extends Dexie {
     }
 
     /**
-     * TODO: find a better way to do Dexie cross-table queries like this. Ignore visits table if no specified times?.
-     *
-     * @param {string} query Terms search query.
-     * @param {number} [startTime=0] Lower-bound for visit time.
-     * @param {number} [endTime=Date.now()] Upper-bound for visit time.
-     * @return {Promise<any[]>}
+     * @param {string} [args.query=''] Terms search query.
+     * @param {number} [args.startTime=0] Lower-bound for visit time.
+     * @param {number} [args.endTime=Date.now()] Upper-bound for visit time.
+     * @param {number} [args.skip=0]
+     * @param {number} [args.limit=10]
+     * @return {Promise<[number, string][]>} Ordered array of result KVPs of latest visit timestamps to page URLs.
      */
-    search(query, startTime = 0, endTime = Date.now()) {
+    search({
+        query = '',
+        startTime = 0,
+        endTime = Date.now(),
+        skip = 0,
+        limit = 10,
+    }) {
         return this.transaction('r', this.pages, this.visits, async () => {
-            // Get all visits in time
-            const visits = await this.visits
+            // Fetch all latest visits in time range, grouped by URL
+            const latestVisitByUrl = new Map()
+            await this.visits
                 .where('[time+url]')
                 .between(
                     [startTime, Storage.MIN_STR],
                     [endTime, Storage.MAX_STR],
                 )
-                .toArray()
+                .reverse() // Go through visits by most recent
+                .eachPrimaryKey(([url, time]) => {
+                    // Only ever record the first (latest) visit for each URL
+                    if (!latestVisitByUrl.get(url)) {
+                        latestVisitByUrl.set(url, time)
+                    }
+                })
 
-            const visitUrls = new Set(visits.map(visit => visit.url))
-
-            return this.pages
-                .where('tokens')
+            // Fetch all pages with terms matching query
+            const matchingPageUrls = await this.pages
+                .where('terms')
                 .equals(query)
-                .filter(page => visitUrls.has(page.url))
-                .with({ visits: 'visits' })
+                .filter(page => latestVisitByUrl.has(page.url))
+                .primaryKeys()
+
+            // Paginate
+            return matchingPageUrls
+                .map(url => [latestVisitByUrl.get(url), url])
+                .sort(([a], [b]) => a - b)
+                .slice(skip, skip + limit)
         })
     }
 }

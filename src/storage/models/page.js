@@ -35,12 +35,14 @@ export default class Page {
         return db.transaction('rw', db.pages, db.visits, async () => {
             await db.pages.put(this)
 
+            // Insert or update all associated visits
             const visitIds = await Promise.all(
                 this.visits.map(visit => visit.save(db)),
             )
 
             const visitTimes = new Set(visitIds.map(([url, time]) => time))
 
+            // Remove any visits no longer associated with this page
             await db.visits
                 .where('[url+time]')
                 .between([this.url, -Infinity], [this.url, Infinity])

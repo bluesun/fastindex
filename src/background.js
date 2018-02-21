@@ -69,11 +69,11 @@ window.fetchPageData = fetchPageData
 
 async function note(source) {
     const text = await fetchPageData(source.url)
-    const tokenStream = TOKENIZER.getTokenStream(text)
+
     return {
         url: source.url,
         text: text,
-        tokens: tokenStream,
+        terms: TOKENIZER.getTokenStream(text),
     }
 }
 
